@@ -2419,7 +2419,7 @@ impl Zmachine {
 
         write!(out, "\nAttributes:\n{:?}", attributes).unwrap();
 
-        return out;
+        out
     }
 
     fn debug_have_attribute(&mut self, attr_str: &str) {
