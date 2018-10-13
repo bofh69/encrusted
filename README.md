@@ -30,6 +30,12 @@ Use `$undo` and `$redo` to step through your move history.
 Use `save` and `restore` to save your progress.
 
 ### Build
+Terminal version:
+
+```sh
+cargo build --bin encrusted
+```
+
 WebAssembly/React web version:
 
 ```sh
@@ -43,7 +49,7 @@ npm run release
 ### Notes
 - Currently only supports v3 zcode files (most of Infocom's library, really)
 - Saves games in the Quetzal format
-
+- Zork 1, 2 and 3 can be downloaded from http://www.infocom-if.org/downloads/downloads.html
 
 ### License
 MIT
