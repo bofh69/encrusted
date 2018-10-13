@@ -166,7 +166,7 @@ impl Zmachine {
         let mut zvm = Zmachine {
             version,
             ui,
-            save_dir: format!("{}", &options.save_dir),
+            save_dir: options.save_dir.clone(),
             save_name: format!("{}.sav", &options.save_name),
             options,
             instr_log: String::new(),
