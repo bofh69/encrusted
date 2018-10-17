@@ -17,6 +17,7 @@ use std::os::raw::{c_char, c_void};
 
 extern "C" {
     fn js_message(mtype: *mut c_char, message: *mut c_char);
+    fn rand() -> u32;
 }
 
 mod buffer;
@@ -68,7 +69,9 @@ where
 {
     ZVM.with(|cell| {
         let mut wrapper = cell.borrow_mut();
-        let zvm: &mut Zmachine = wrapper.as_mut().unwrap();
+        let zvm: &mut Zmachine = wrapper.as_mut().expect(
+            "Error unwrapping zmachine from cell"
+        );
 
         func(zvm)
     })
@@ -95,7 +98,8 @@ pub fn create(file_ptr: *mut u8, len: usize) {
 
         let data = unsafe { std::vec::Vec::from_raw_parts(file_ptr, len, len) };
         let ui = WebUI::new();
-        let opts = Options::default();
+        let mut opts = Options::default();
+        opts.rand_seed = unsafe { [rand(), rand(), rand(), rand()] };
 
         let zvm = Zmachine::new(data, ui, opts);
         *cell.borrow_mut() = Some(zvm);
@@ -106,6 +110,7 @@ pub fn create(file_ptr: *mut u8, len: usize) {
 pub fn step() -> bool {
     with(|zvm| {
         let done = zvm.step();
+
         zvm.ui.flush();
         push_updates(zvm);
         done

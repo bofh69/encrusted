@@ -3,6 +3,7 @@ import WorkerController from './WorkerController';
 import { Graph } from './Rooms';
 
 import Restore from './components/Restore';
+import ErrorModal from './components/ErrorModal';
 
 
 const has = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
@@ -63,7 +64,8 @@ const url = (process.env.NODE_ENV === 'production')
   : '/worker.js';
 
 const worker = new WorkerController(url);
-let local; // file specific localstorage
+
+let storage; // file specific localstorage
 let graph;
 let saves = [];
 let last_input = '';
@@ -76,11 +78,11 @@ const middleware = store => next => (action) => {
   function bindWorker() {
     // Some actions that are a bit expensive & can be done when idle.
     // * serialize/compress can interrupt rendering, so put it off
-    const [saveMap, cancel] = debounce(() => local.set('map', graph.serialize()));
+    const [saveMap, cancelSave] = debounce(() => storage.set('map', graph.serialize()));
 
     worker.on('print', (text) => {
       dispatch({ type: 'TS::TEXT', text });
-      cancel();
+      cancelSave();
 
       if (!!~text.indexOf('You have died')) {
         last_input = 'DIED';
@@ -88,6 +90,7 @@ const middleware = store => next => (action) => {
     });
 
     worker.on('header', data => dispatch({ type: 'TS::HEADER', data }));
+    worker.on('quit', () => dispatch({ type: 'TS::QUIT' }));
 
     // short timer here to make sure the text gets rendered quickest
     worker.on('map', data => setTimeout(() => {
@@ -103,7 +106,7 @@ const middleware = store => next => (action) => {
     // short timer here too
     worker.on('tree', data => setTimeout(() => {
       dispatch({ type: 'TREE::DATA', data });
-      local.set('tree', data);
+      storage.set('tree', data);
     }, 10));
 
     // here too
@@ -115,13 +118,13 @@ const middleware = store => next => (action) => {
     worker.on('savestate', (save) => {
       dispatch({ type: 'SAVES::STATE', save });
       // edge case: don't save state at very start of a game
-      if (!!last_input) local.set('savestate', save);
+      if (!!last_input) storage.set('savestate', save);
     });
 
     worker.on('save', (save) => {
       dispatch({ type: 'SAVES::INSTR', save });
       saves.push(save);
-      local.set('saves', JSON.stringify(saves));
+      storage.set('saves', JSON.stringify(saves));
     });
 
     worker.on('restore', () => {
@@ -129,19 +132,7 @@ const middleware = store => next => (action) => {
     });
 
     worker.on('error', (err) => {
-      const body = (
-        <div className="modal-body">
-          <h2>Error</h2>
-          <p>
-            Unexpected zmachine error:
-          </p>
-          <pre className="danger">
-            {err.stack}
-          </pre>
-        </div>
-      );
-
-      dispatch({ type: 'MODAL::SHOW', child: body });
+      dispatch({ type: 'MODAL::SHOW', child: <ErrorModal err={err} /> });
     });
 
     worker.isBound = true;
@@ -155,15 +146,15 @@ const middleware = store => next => (action) => {
 
     // set up UI
     last_input = '';
-    local = new LocalStore(filename);
-    graph = Graph.deserialize(local.get('map'));
-    saves = JSON.parse(local.get('saves') || '[]');
+    storage = new LocalStore(filename);
+    graph = Graph.deserialize(storage.get('map'));
+    saves = JSON.parse(storage.get('saves') || '[]');
 
     // specific fn to get object details for the tree
     const getDetails = id => worker.sendAnd('getDetails', id);
 
     dispatch({ type: 'MAP::CREATE', graph });
-    dispatch({ type: 'TREE::DATA', data: local.get('tree') || '{}' });
+    dispatch({ type: 'TREE::DATA', data: storage.get('tree') || '{}' });
     dispatch({ type: 'TREE::DETAILS', getDetails });
     dispatch({ type: 'SAVES::LOAD', saves });
 
@@ -175,7 +166,7 @@ const middleware = store => next => (action) => {
       const query = new URL(window.location.href).searchParams.get('save');
       const state = (query)
         ? decodeURI(query).replace(/ /g, '+')
-        : local.get('savestate');
+        : storage.get('savestate');
 
       if (state) {
         const [_id, data] = JSON.parse(state);
@@ -204,7 +195,7 @@ const middleware = store => next => (action) => {
       worker.send('restart');
       worker.once('loaded', () => worker.send('start'));
 
-      local.clear();
+      storage.clear();
       last_input = '';
       graph = new Graph();
       dispatch({ type: 'MAP::CREATE', graph });

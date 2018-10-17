@@ -4,6 +4,7 @@ import { connect } from 'react-redux';
 import fileDB from '../fileDB';
 import Move from './Move';
 import Header from './Header';
+import ErrorModal from './ErrorModal';
 
 
 class Transcript extends Component {
@@ -19,12 +20,7 @@ class Transcript extends Component {
     const filename = this.props.filename;
 
     const onErr = (err, msg) => {
-      this.props.openModal(
-        <div>
-          <h2>Error ~</h2>
-          <div className="modal-body mt-4">{msg}</div>
-        </div>
-      );
+      this.props.openModal(<ErrorModal err={err} msg={msg} />);
     };
 
     fileDB.load(filename)
@@ -63,6 +59,7 @@ class Transcript extends Component {
   }
 
   render() {
+    // only the last move is "active" and will have a text input field
     const moves = this.props.moves.map((move, index) => (
       <Move
         isActive={(index === this.props.moves.length - 1)}

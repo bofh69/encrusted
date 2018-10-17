@@ -19,10 +19,10 @@ const zmachine = new Wrapper({
   hook: [],
   create: [null, ['number', 'number']],
   feed: [null, ['string']],
-  step: [],
-  get_updates: [],
+  step: ['bool'],
   undo: ['bool'],
   redo: ['bool'],
+  get_updates: [],
   restore: [null, ['string']],
   load_savestate: [null, ['string']],
   enable_instruction_logs: [null, ['bool']],
@@ -47,6 +47,10 @@ zmachine.imports(wrap => ({
         msg: { msg, stack: err.stack }
       });
     }),
+
+    rand: function() {
+      return Math.floor(Math.random() * 0xFFFF);
+    }
   },
 }));
 
